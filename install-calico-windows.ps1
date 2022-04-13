@@ -360,11 +360,11 @@ if ($platform -EQ "aks") {
 if ($platform -EQ "eks") {
     EnableWinDsrForEKS
 
-    $token = Invoke-RestMethod -Headers @{"X-aws-ec2-metadata-token-ttl-seconds" = "300"} -Method PUT -Uri http://169.254.169.254/latest/api/token -ErrorAction Ignore
-    $awsNodeName = Invoke-RestMethod -Headers @{"X-aws-ec2-metadata-token" = $token} -Method GET -Uri http://169.254.169.254/latest/meta-data/local-hostname -ErrorAction Ignore
-    Write-Host "Setup Calico for Windows for EKS, node name $awsNodeName ..."
+    $awsNodeName = Get-EC2InstanceMetadata -Category LocalHostname
+    $awsFullNodeName = $awsNodeName + ".ec2.internal"
+    Write-Host "Setup Calico for Windows for EKS, node name $awsFullNodeName ..."
     $Backend = "none"
-    $awsNodeNameQuote = """$awsNodeName"""
+    $awsNodeNameQuote = """$awsFullNodeName"""
     SetConfigParameters -OldString '$(hostname).ToLower()' -NewString "$awsNodeNameQuote"
     SetConfigParameters -OldString 'CALICO_NETWORKING_BACKEND="vxlan"' -NewString 'CALICO_NETWORKING_BACKEND="none"'
     SetConfigParameters -OldString 'KUBE_NETWORK = "Calico.*"' -NewString 'KUBE_NETWORK = "vpc.*"'
@@ -374,9 +374,8 @@ if ($platform -EQ "eks") {
 }
 if ($platform -EQ "ec2") {
     $awsNodeName = Get-EC2InstanceMetadata -Category LocalHostname
-    $awsFullNodeName = "$awsNodeName" + ".ec2.internal"
-    Write-Host "Setup Calico for Windows for AWS, node name $awsFullNodeName ..."
-    $awsNodeNameQuote = """$awsFullNodeName"""
+    Write-Host "Setup Calico for Windows for AWS, node name $awsNodeName ..."
+    $awsNodeNameQuote = """$awsNodeName"""
     SetConfigParameters -OldString '$(hostname).ToLower()' -NewString "$awsNodeNameQuote"
 
     $calicoNs = GetCalicoNamespace
